@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/raghavgupta/Projects/chat-app/client/main'
+relocations:     []
+...
