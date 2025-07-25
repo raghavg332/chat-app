@@ -26,7 +26,7 @@ int main(){
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr);
-    server_addr.sin_port = htons(8080);
+    server_addr.sin_port = htons(8081);
     
     if (connect(client_socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
         close(client_socket_fd);
@@ -49,7 +49,9 @@ int main(){
             close(client_socket_fd);
             break;
         }
+        int error_flag = 0;
         for (int i = 0; i<2; i++){
+            // cout<<"here";
             if (fd_list[i].revents & POLLIN){
                 if (fd_list[i].fd == STDIN_FILENO){
                     string answer;
@@ -60,13 +62,24 @@ int main(){
                     const int BUFFER_SIZE = 1024;
                     char buffer[BUFFER_SIZE];
                     ssize_t received = recv(client_socket_fd, &buffer, BUFFER_SIZE, 0);
+                    if (received<0){
+                        perror("receive");
+                        error_flag = 1;
+                        close(client_socket_fd);
+                        break;
+                    }
+                    else if (received == 0){
+                        perror("connection disconnected");
+                        error_flag = 1;
+                        close(client_socket_fd);
+                        break;
+                    }
                     buffer[received] = '\0';
                     cout<<buffer<<endl;
                 }
             }
         }
-
-        
+        if (error_flag == 1) break;
     }   
     close(client_socket_fd);
     

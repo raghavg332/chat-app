@@ -1,0 +1,4 @@
+/client/main
+/client/main.dSYM/*
+/server/main
+/server/main.dSYM/*
