@@ -32,7 +32,7 @@ int main(){
         close(client_socket_fd);
         perror("connect");
     }
-
+    cout<<"connected to server"<<endl;
     struct pollfd fd_list[2];
     fd_list[0] = {
         client_socket_fd,
@@ -51,7 +51,6 @@ int main(){
         }
         int error_flag = 0;
         for (int i = 0; i<2; i++){
-            // cout<<"here";
             if (fd_list[i].revents & POLLIN){
                 if (fd_list[i].fd == STDIN_FILENO){
                     string answer;

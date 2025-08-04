@@ -27,13 +27,34 @@ void handle_sigint(int sig){
 }
 
 
-void client_thread(int client_id, string client_name){
-    cout<<"here";
-    // signal(SIGINT ,handle_sigint);
+void client_thread(int client_id){
+    string ask_username = "Please enter your username: ";
+    if (send(client_id, ask_username.c_str(), ask_username.size(), 0)<0){
+        perror("send");
+        close(client_id);
+        return;
+    }
     const int BUFFER_SIZE = 1024;
     char buffer[BUFFER_SIZE];
+    string client_name;
     
-    for (int i = 0; i<=30000; i++){
+    ssize_t received = recv(client_id, &buffer, BUFFER_SIZE, 0);
+    if (received<=0){
+        close(client_id);
+        perror("receive");
+        return;
+    }
+    else{
+        buffer[received] = '\0';
+        client_name = buffer;
+        lock_guard<mutex> locker(lock_clients);
+        client_list.push_back({client_name, client_id});
+        cout<<client_name<<endl;
+    }
+   
+
+
+    while (true){
         ssize_t received = recv(client_id, &buffer, BUFFER_SIZE, 0);
         if (received < 0){
             perror("receive");
@@ -45,7 +66,6 @@ void client_thread(int client_id, string client_name){
 
             for (int j = 0; j<client_list.size(); j++){
                 if (client_list[j].second==client_id){
-
                     client_list.erase(client_list.begin()+j);
                     break;
                 }
@@ -60,10 +80,12 @@ void client_thread(int client_id, string client_name){
         temp = "[" + client_name + "] " + temp;
         lock_guard<mutex> locker(lock_clients);
         for (int j = 0; j<client_list.size(); j++){
-                if (send(client_list[j].second, temp.c_str(), sizeof(temp), 0)<0){
-                perror("send");
-                break;
-            }
+            if (client_id!=client_list[j].second){
+                if (send(client_list[j].second, temp.c_str(), temp.size(), 0)<0){
+                    perror("send");
+                    break;
+                }
+            }   
         }
     }
     close(client_id);
@@ -98,21 +120,18 @@ int main() {
         return 1;
     }
 
-    for (int i = 0; i<2000; i++){
+    while (true){
         struct sockaddr_in client_socket;
         socklen_t client_addr_len= sizeof(client_socket);
 
         int client_id = accept(server_fd, (struct sockaddr*)&client_socket, &client_addr_len);
-        lock_guard<mutex> locker(lock_clients);
-        string client_name = "client " + to_string(i);
-        client_list.push_back({client_name, client_id});
-
+        
         if (client_id<0){
             close(server_fd);
             perror("accept");
             return 1;
         }
-        thread t(client_thread, client_id, client_name);
+        thread t(client_thread, client_id);
         t.detach();
     }
     
