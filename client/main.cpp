@@ -6,11 +6,10 @@
 #include <cstring>
 #include <poll.h>
 
-using namespace std;
 int client_socket_fd = -1;
 
 void handle_sigint(int sig){
-    cout<<"detected exit"<<endl;
+    std::cout<<"detected exit"<<std::endl;
     if (client_socket_fd!=-1) close(client_socket_fd);
     exit(0);
 }
@@ -32,7 +31,7 @@ int main(){
         close(client_socket_fd);
         perror("connect");
     }
-    cout<<"connected to server"<<endl;
+    std::cout<<"connected to server"<<std::endl;
     struct pollfd fd_list[2];
     fd_list[0] = {
         client_socket_fd,
@@ -43,7 +42,7 @@ int main(){
         POLLIN
     };
 
-    for (int i = 0; i<=30000; i++){
+    while (true){
         int ready = poll(fd_list, 2, -1);
         if (ready < 0){
             close(client_socket_fd);
@@ -53,8 +52,8 @@ int main(){
         for (int i = 0; i<2; i++){
             if (fd_list[i].revents & POLLIN){
                 if (fd_list[i].fd == STDIN_FILENO){
-                    string answer;
-                    cin>>answer;
+                    std::string answer;
+                    std::getline(std::cin, answer);
                     send(client_socket_fd, answer.c_str(), answer.size(), 0);
                 }
                 else if (fd_list[i].fd == client_socket_fd){
@@ -74,7 +73,7 @@ int main(){
                         break;
                     }
                     buffer[received] = '\0';
-                    cout<<buffer<<endl;
+                    std::cout<<buffer<<std::endl;
                 }
             }
         }

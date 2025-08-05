@@ -6,17 +6,18 @@
 #include <cstring>
 #include <thread>
 #include <mutex>
+#include <vector>
+#include <string>
+#include <csignal>
 
-using namespace std;
+std::mutex lock_clients;
 
-mutex lock_clients;
-
-vector<pair<string, int>> client_list;
+std::vector<std::pair<std::string, int>> client_list;
 
 int server_fd = -1;
 
 void handle_sigint(int sig){
-    cout<<"Detected exit";
+    std::cout<<"Detected exit";
     if (server_fd!=-1) close(server_fd);
     if (client_list.size()!=0){
         for (int i = 0; i<client_list.size(); i++){
@@ -28,7 +29,7 @@ void handle_sigint(int sig){
 
 
 void client_thread(int client_id){
-    string ask_username = "Please enter your username: ";
+    std::string ask_username = "Please enter your username: ";
     if (send(client_id, ask_username.c_str(), ask_username.size(), 0)<0){
         perror("send");
         close(client_id);
@@ -36,7 +37,7 @@ void client_thread(int client_id){
     }
     const int BUFFER_SIZE = 1024;
     char buffer[BUFFER_SIZE];
-    string client_name;
+    std::string client_name;
     
     ssize_t received = recv(client_id, &buffer, BUFFER_SIZE, 0);
     if (received<=0){
@@ -47,9 +48,9 @@ void client_thread(int client_id){
     else{
         buffer[received] = '\0';
         client_name = buffer;
-        lock_guard<mutex> locker(lock_clients);
+        std::lock_guard<std::mutex> locker(lock_clients);
         client_list.push_back({client_name, client_id});
-        cout<<client_name<<endl;
+        std::cout<<client_name<<std::endl;
     }
    
 
@@ -61,8 +62,8 @@ void client_thread(int client_id){
             break;
         }
         else if (received == 0){
-            lock_guard<mutex> locker(lock_clients);
-            cout<<"client disconnected"<<endl;
+            std::lock_guard<std::mutex> locker(lock_clients);
+            std::cout<<"client disconnected"<<std::endl;
 
             for (int j = 0; j<client_list.size(); j++){
                 if (client_list[j].second==client_id){
@@ -73,12 +74,12 @@ void client_thread(int client_id){
             break;
          }
         buffer[received] = '\0';
-        cout<<buffer<<endl;
+        std::cout<<buffer<<std::endl;
         
-        cout<<"sending message"<<endl;
-        string temp = buffer;
+        std::cout<<"sending message"<<std::endl;
+        std::string temp = buffer;
         temp = "[" + client_name + "] " + temp;
-        lock_guard<mutex> locker(lock_clients);
+        std::lock_guard<std::mutex> locker(lock_clients);
         for (int j = 0; j<client_list.size(); j++){
             if (client_id!=client_list[j].second){
                 if (send(client_list[j].second, temp.c_str(), temp.size(), 0)<0){
@@ -108,7 +109,7 @@ int main() {
     server_addr.sin_port = htons(8081);
 
     
-    if (::bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
+    if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
         close(server_fd);
         perror("bind failed");
         return 1;
@@ -131,7 +132,7 @@ int main() {
             perror("accept");
             return 1;
         }
-        thread t(client_thread, client_id);
+        std::thread t(client_thread, client_id);
         t.detach();
     }
     
