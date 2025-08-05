@@ -14,6 +14,9 @@ std::mutex lock_clients;
 
 std::vector<std::pair<std::string, int>> client_list;
 
+std::unordered_map<std::string, std::vector<int>> groups_to_client;
+std::unordered_map<int, std::string> client_to_group;
+
 int server_fd = -1;
 
 void handle_sigint(int sig){
@@ -27,6 +30,55 @@ void handle_sigint(int sig){
     exit(0);
 }
 
+int join_group(int client_id, std::string temp){
+    std::string message;
+    
+    std::string group_name = temp.substr(5);
+    std::lock_guard<std::mutex> locker(lock_clients);
+    if (client_to_group.find(client_id)!=client_to_group.end()){
+        message = "You are already a part of a group.";
+    }
+    else{
+        if (groups_to_client.find(group_name)==groups_to_client.end()){
+            groups_to_client[group_name] = std::vector<int> ();
+            message = "Created group " + group_name;
+        }
+        else{
+            message = "Successfully joined group" + group_name;
+        }
+        groups_to_client[group_name].push_back(client_id);
+        client_to_group[client_id] = group_name;
+    }
+
+    if (send(client_id, message.c_str(), message.size(), 0)<0){
+        std::lock_guard<std::mutex> locker(lock_clients);
+        perror("send");
+        close(client_id);
+        client_to_group.erase(client_id);
+        groups_to_client[group_name].erase(std::remove(groups_to_client[group_name].begin(), groups_to_client[group_name].end(), client_id), groups_to_client[group_name].end());
+        for (int j = 0; j<client_list.size(); j++){
+            if (client_list[j].second==client_id){
+                client_list.erase(client_list.begin()+j);
+                break;
+            }
+        }
+        return -1;
+    }
+    return 1;
+}
+
+int get_users_list(int client_id){
+    std::string users_list = "Connected Users:";
+    for (int j = 0; j<client_list.size(); j++){
+        users_list = users_list + "\n" + std::to_string(j+1) + ". " + client_list[j].first;
+    }
+    if (send(client_id, users_list.c_str(), users_list.size(), 0)<0){
+        perror("send");
+        close(client_id);
+        return -1;
+    }   
+    return 1;
+}
 
 void client_thread(int client_id){
     std::string ask_username = "Please enter your username: ";
@@ -52,18 +104,14 @@ void client_thread(int client_id){
         client_list.push_back({client_name, client_id});
         std::cout<<client_name<<std::endl;
     }
-   
-
 
     while (true){
         ssize_t received = recv(client_id, &buffer, BUFFER_SIZE, 0);
-        if (received < 0){
-            perror("receive");
-            break;
-        }
-        else if (received == 0){
+        if (received <= 0){
+            close(client_id);
             std::lock_guard<std::mutex> locker(lock_clients);
-            std::cout<<"client disconnected"<<std::endl;
+            if (received < 0) perror("recv failed");
+            else std::cout << "Client closed the connection." << std::endl;
 
             for (int j = 0; j<client_list.size(); j++){
                 if (client_list[j].second==client_id){
@@ -71,22 +119,46 @@ void client_thread(int client_id){
                     break;
                 }
             }
+            if (client_to_group.find(client_id) != client_to_group.end()) {
+                std::string group_name = client_to_group[client_id];
+                groups_to_client[group_name].erase(std::remove(groups_to_client[group_name].begin(), groups_to_client[group_name].end(), client_id), groups_to_client[group_name].end());
+                client_to_group.erase(client_id);
+            }
             break;
          }
         buffer[received] = '\0';
-        std::cout<<buffer<<std::endl;
-        
-        std::cout<<"sending message"<<std::endl;
+
         std::string temp = buffer;
-        temp = "[" + client_name + "] " + temp;
-        std::lock_guard<std::mutex> locker(lock_clients);
-        for (int j = 0; j<client_list.size(); j++){
-            if (client_id!=client_list[j].second){
-                if (send(client_list[j].second, temp.c_str(), temp.size(), 0)<0){
-                    perror("send");
-                    break;
+        if (temp.substr(0, 6) == "/users"){
+            if (get_users_list(client_id)<0) return;
+        }
+        else if (temp.substr(0, 5) == "/join"){
+            if (join_group(client_id, temp)<0) return;
+        }
+        else{
+            temp = "[" + client_name + "] " + temp;
+            std::lock_guard<std::mutex> locker(lock_clients);
+            if (client_to_group.find(client_id)!=client_to_group.end()){
+                std::string group_name = client_to_group[client_id];
+                for (int j = 0; j<groups_to_client[group_name].size(); j++){
+                    if (client_id!=groups_to_client[group_name][j]){
+                        if (send(groups_to_client[group_name][j], temp.c_str(), temp.size(), 0)<0){
+                            perror("send");
+                            close(groups_to_client[group_name][j]);
+                        }
+                    }
                 }
-            }   
+            }
+            else{
+                for (int j = 0; j<client_list.size(); j++){
+                    if (client_id!=client_list[j].second){
+                        if (send(client_list[j].second, temp.c_str(), temp.size(), 0)<0){
+                            perror("send");
+                            close(client_list[j].second);
+                        }
+                    }   
+                }
+            }
         }
     }
     close(client_id);
