@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <csignal>
+#inclide <unordered_map>
 
 std::mutex lock_clients;
 
@@ -65,7 +66,7 @@ int join_group(int client_id, std::string temp){
         groups_to_client[group_name].push_back(client_id);
         client_to_group[client_id] = group_name;
     }
-
+    message = message + '\n';
     if (send(client_id, message.c_str(), message.size(), 0)<0){
         perror("send");
         std::lock_guard<std::mutex> locker(lock_clients);
@@ -86,7 +87,7 @@ int get_users_list(int client_id){
     }
     else{
         std::string group_name = client_to_group[client_id];
-        users_list = "Users connected to" + group_name + ":";
+        users_list = "Users connected to " + group_name + ":";
         for (int j = 0; j<groups_to_client[group_name].size(); j++){
             std::string client;
             int id = groups_to_client[group_name][j];
@@ -99,6 +100,7 @@ int get_users_list(int client_id){
             users_list = users_list + "\n" + std::to_string(j+1) + ". " + client;
         }
     }
+    users_list = users_list + '\n';
     if (send(client_id, users_list.c_str(), users_list.size(), 0)<0){
         perror("send");
         close_client(client_id);
@@ -169,6 +171,7 @@ void client_thread(int client_id){
             for (const auto& group : groups_to_client) {
                 groups_list += "\n" + group.first + " (" + std::to_string(group.second.size()) + " user/s)";
             }
+            groups_list += '\n';
             if (send(client_id, groups_list.c_str(), groups_list.size(), 0)<0){
                 perror("send");
                 close_client(client_id);
@@ -182,6 +185,7 @@ void client_thread(int client_id){
                 groups_to_client[group_name].erase(std::remove(groups_to_client[group_name].begin(), groups_to_client[group_name].end(), client_id), groups_to_client[group_name].end());
                 client_to_group.erase(client_id);
                 std::string message = "You have left the group" + group_name;
+                message += '\n';
                 if (send(client_id, message.c_str(), message.size(), 0)<0){
                     perror("send");
                     close_client(client_id);
@@ -190,6 +194,7 @@ void client_thread(int client_id){
             }
             else{
                 std::string message = "You are not part of any group.";
+                message += '\n';
                 if (send(client_id, message.c_str(), message.size(), 0)<0){
                     perror("send");
                     close_client(client_id);

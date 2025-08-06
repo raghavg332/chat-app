@@ -24,8 +24,8 @@ int main(){
     }
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
-    inet_pton(AF_INET, "0.0.0.0", &server_addr.sin_addr);
-    // inet_pton(AF_INET, "13.200.235.191", &server_addr.sin_addr);
+    // inet_pton(AF_INET, "0.0.0.0", &server_addr.sin_addr);
+    inet_pton(AF_INET, "13.200.235.191", &server_addr.sin_addr);
     server_addr.sin_port = htons(8081);
     
     if (connect(client_socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
