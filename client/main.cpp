@@ -13,6 +13,8 @@
 int client_socket_fd = -1;
 std::atomic<bool> running{true};
 
+std::mutex lock_chat_window;
+
 void handle_sigint(int sig){
     std::cout << "detected exit" << std::endl;
     if (client_socket_fd != -1) close(client_socket_fd);
@@ -30,14 +32,16 @@ void input_thread(int client_socket_fd, WINDOW* input_win, WINDOW* chat_win){
         wgetnstr(input_win, str, sizeof(str));
         std::string answer = std::string(str);
 
-        wattron(chat_win, A_BOLD);
-        wattron(chat_win, COLOR_PAIR(1));
-        wprintw(chat_win, "You:");
-        wattroff(chat_win, COLOR_PAIR(1));     
-
-        wprintw(chat_win, " %s\n\n", answer.c_str());
-        wattroff(chat_win, A_BOLD);
-        wrefresh(chat_win);
+        if (answer.size() != 0){
+            std::lock_guard<std::mutex> locker(lock_chat_window);
+            wattron(chat_win, A_BOLD);
+            wattron(chat_win, COLOR_PAIR(1));
+            wprintw(chat_win, "You:");
+            wattroff(chat_win, COLOR_PAIR(1));     
+            wprintw(chat_win, " %s\n\n", answer.c_str());
+            wattroff(chat_win, A_BOLD);
+            wrefresh(chat_win);
+        }
 
         werase(input_win);
         box(input_win, 0, 0);
@@ -74,6 +78,7 @@ void chat_thread(int client_socket_fd, WINDOW* input_win, WINDOW* chat_win){
         size_t bracket_pos = msg.find('[');
 
         if (bracket_pos != std::string::npos) {
+            std::lock_guard<std::mutex> locker(lock_chat_window);
             std::string prefix = msg.substr(0, colon_pos + 1);   
             std::string rest = msg.substr(colon_pos + 1);
 
@@ -83,7 +88,10 @@ void chat_thread(int client_socket_fd, WINDOW* input_win, WINDOW* chat_win){
 
             wprintw(chat_win, "%s\n\n", rest.c_str());
         } else {
+            std::lock_guard<std::mutex> locker(lock_chat_window);
+            wattron(chat_win, COLOR_PAIR(3));
             wprintw(chat_win, "%s\n\n", buffer);
+            wattroff(chat_win, COLOR_PAIR(3));
         }
 
         wrefresh(chat_win);
@@ -97,8 +105,9 @@ int main(){
     initscr();
     start_color();
     use_default_colors();  
-    init_pair(1, COLOR_CYAN, -1);    
-    init_pair(2, COLOR_RED, -1);   
+    init_pair(1, COLOR_CYAN, -1);
+    init_pair(2, COLOR_RED, -1);
+    init_pair(3, COLOR_GREEN, -1);
     cbreak();
     keypad(stdscr, TRUE);
     curs_set(1);
