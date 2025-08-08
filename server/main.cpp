@@ -9,7 +9,7 @@
 #include <vector>
 #include <string>
 #include <csignal>
-#inclide <unordered_map>
+#include <unordered_map>
 
 std::mutex lock_clients;
 
@@ -103,6 +103,7 @@ int get_users_list(int client_id){
     users_list = users_list + '\n';
     if (send(client_id, users_list.c_str(), users_list.size(), 0)<0){
         perror("send");
+        std::lock_guard<std::mutex> locker(lock_clients);
         close_client(client_id);
         return -1;
     }   
@@ -184,7 +185,7 @@ void client_thread(int client_id){
                 std::string group_name = client_to_group[client_id];
                 groups_to_client[group_name].erase(std::remove(groups_to_client[group_name].begin(), groups_to_client[group_name].end(), client_id), groups_to_client[group_name].end());
                 client_to_group.erase(client_id);
-                std::string message = "You have left the group" + group_name;
+                std::string message = "You have left the group " + group_name;
                 message += '\n';
                 if (send(client_id, message.c_str(), message.size(), 0)<0){
                     perror("send");
