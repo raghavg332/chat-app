@@ -4,7 +4,14 @@ A high-performance, terminal-based chat system built in modern C++ with **POSIX 
 Supports **multi-client messaging**, **group chat**, and a simple command interface — engineered for concurrency, stability, and real-time feedback.
 
 ---
+## System Architecture
+<img width="595" height="667" alt="system architecture" src="https://github.com/user-attachments/assets/461be6ff-fcfc-45d0-8a07-5596418ad5ff" />
 
+---
+## Message Flow
+<img width="1490" height="800" alt="message flow" src="https://github.com/user-attachments/assets/a027c1d5-89e4-4837-ae88-fa85cd20cbf6" />
+
+---
 ## Features
 
 ### 🖥 Server
