@@ -5,7 +5,7 @@ Supports **multi-client messaging**, **group chat**, and a simple command interf
 
 ---
 
-## ✨ Features
+## Features
 
 ### 🖥 Server
 - **Multi-threaded TCP server** with one thread per client.
@@ -37,10 +37,14 @@ Supports **multi-client messaging**, **group chat**, and a simple command interf
 
 ## 📂 Project Structure
 ```
-├── server.cpp   # Multithreaded chat server
-├── client.cpp   # Ncurses chat client
+├── server
+│   └── main.cpp # Multithreaded chat server
+│   └── main
+├── client
+│   └── main.cpp # Ncurses chat client
+│   └── main
 ├── testing/
-│   └── load_no_framing.py  # Async load tester for performance benchmarking
+│   └── load_tester.py  # Async load tester for performance benchmarking
 └── README.md
 ```
 
@@ -50,19 +54,23 @@ Supports **multi-client messaging**, **group chat**, and a simple command interf
 
 ### 1. Compile
 ```bash
-g++ server.cpp -o server -pthread
-g++ client.cpp -o client -pthread -lncurses
+cd server
+g++ main.cpp -o main -pthread
+cd client
+g++ main.cpp -o main -pthread -lncurses
 ```
 
 ### 2. Run the server
 ```bash
-./server
+cd server
+./main
 ```
 By default, the server listens on **port 8081**.
 
 ### 3. Run clients
 ```bash
-./client
+cd client
+./main
 ```
 Enter a username when prompted, then chat using:
 - `/users` — List connected users
@@ -78,7 +86,8 @@ All benchmarks were run on:
 - **AWS EC2 Free Tier** (t2.micro — 1 vCPU, 1 GB RAM)
 - **Amazon Linux (latest)**
 - Server compiled with `g++` on Amazon Linux
-- Clients simulated using the provided async load tester (`load_no_framing.py`), measuring **Time-to-First-Byte (TTFB)** for `/users` command responses.
+- Clients simulated using the provided async load tester (`load_tester.py`), measuring **Time-to-First-Byte (TTFB)** for `/users` command responses.
+- Clients and server ran on different instances.
 
 ### **Baseline Run** — 100 concurrent clients
 | Metric                   | Value   |
@@ -115,21 +124,7 @@ All benchmarks were run on:
 ---
 
 ## 📈 Key Takeaways
-- Handles **100 concurrent clients** with **p50 latency ~53 ms** on a **t2.micro** instance.
+- Handles **100 concurrent clients** with **p50 latency ~53 ms** on a remote **t2.micro** instance.
 - Scales to **400 concurrent clients** before significant median latency growth (>160 ms).
 - Zero connection failures observed up to 450 concurrent clients in this environment.
 - Memory & CPU remained stable during testing; main bottleneck is **single-thread-per-client model** on limited CPU.
-
----
-
-## 🧩 Possible Improvements
-- Implement **newline-based message framing** for cleaner parsing and broadcast latency measurements.
-- Use **epoll/select** to handle thousands of clients with fewer threads.
-- Add **persistent chat history** and **authentication**.
-- Implement **encryption (TLS)** for secure messaging.
-- Add **stress tests in CI** to catch regressions.
-
----
-
-## 📜 License
-This project is released under the MIT License.
