@@ -35,6 +35,34 @@ Supports **multi-client messaging**, **group chat**, and a simple command interf
 
 ---
 
+## Design Decisions & Trade-offs
+
+### 1. **Thread-per-client model**
+- **Why chosen:** Simpler to implement and reason about for an educational project. Each client has a dedicated thread for reading, which avoids complex I/O multiplexing code.
+- **Trade-off:** Does not scale as efficiently to thousands of connections due to thread stack memory usage and context-switch overhead.
+- **Future improvement:** Use `epoll` or `select` for event-driven I/O to handle more concurrent clients on fewer threads.
+
+### 2. **POSIX TCP sockets**
+- **Why chosen:** Gives full control over connection lifecycle, error handling, and data flow.
+- **Trade-off:** Requires manually handling partial reads/writes, message framing, and connection cleanup.
+
+### 3. **No message framing (current)**
+- **Why chosen:** Simplifies first implementation; relies on sending small discrete messages that fit into `recv()` boundaries in most test cases.
+- **Trade-off:** Not robust under high-throughput or real-world WAN conditions due to TCP stream coalescing/splitting.
+- **Future improvement:** Implement newline-based or length-prefixed framing for guaranteed message boundary detection.
+
+### 4. **ncurses for terminal UI**
+- **Why chosen:** Enables a real-time, color-coded, interactive experience without external GUI dependencies.
+- **Trade-off:** Limited to terminal environments; does not support modern rich media.
+- **Future improvement:** Add optional WebSocket + browser UI for accessibility.
+
+### 5. **Testing with synthetic clients**
+- **Why chosen:** Allows precise measurement of performance metrics like TTFB and scalability without needing hundreds of real users.
+- **Trade-off:** Synthetic tests may not capture all edge cases of human-driven usage patterns.
+- **Future improvement:** Include tests simulating variable typing speed, intermittent connectivity, and message size variation.
+
+---
+
 ## 📂 Project Structure
 ```
 ├── server
