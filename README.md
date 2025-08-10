@@ -74,6 +74,8 @@ cd server
 ```
 By default, the server listens on **port 8081**.
 
+Note: An instance of the server is already hosted at 13.200.235.191:8081 that the client can easily connect to.
+
 ### 3. Run clients
 ```bash
 cd client
